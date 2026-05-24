@@ -325,13 +325,15 @@ app.post('/api/open-folder', (req, res) => {
     }
   }
 
-  exec(`explorer.exe "${targetDir}"`, (err) => {
-    if (err) {
-      console.error('Open folder error:', err);
-      return res.status(500).json({ error: 'Failed to open directory', details: err.message });
-    }
+  // Windows explorer.exe can exit with non-zero codes even when successful. 
+  // Using spawn with detached: true is more robust and prevents false-alarm errors.
+  try {
+    const p = spawn('explorer.exe', [targetDir], { detached: true, stdio: 'ignore' });
+    p.unref();
     return res.json({ success: true });
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to open directory', details: err.message });
+  }
 });
 
 // Start Server
