@@ -7,8 +7,11 @@ const yts = require('yt-search');
 
 // Active child process registry for lifecycle management (preventing orphan processes)
 const activeProcesses = new Set();
+let isShuttingDown = false;
 
 function cleanupAndExit() {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
   console.log('\nShutting down server, terminating active download/transcode child processes...');
   for (const proc of activeProcesses) {
     try {
@@ -31,6 +34,8 @@ process.on('SIGTERM', cleanupAndExit);
 // For standard terminations (e.g., Ctrl+C), the SIGINT and SIGTERM handlers are the primary 
 // mechanisms that guarantee execution.
 process.on('exit', () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
   for (const proc of activeProcesses) {
     try {
       if (process.platform === 'win32') {
