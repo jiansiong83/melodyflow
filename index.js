@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const { exec, spawn } = require('child_process');
+const { exec, spawn, execSync } = require('child_process');
 const yts = require('yt-search');
 
 // Active child process registry for lifecycle management (preventing orphan processes)
@@ -12,7 +12,11 @@ function cleanupAndExit() {
   console.log('\nShutting down server, terminating active download/transcode child processes...');
   for (const proc of activeProcesses) {
     try {
-      proc.kill('SIGKILL');
+      if (process.platform === 'win32') {
+        execSync(`taskkill /pid ${proc.pid} /T /F`, { stdio: 'ignore' });
+      } else {
+        proc.kill('SIGKILL');
+      }
     } catch (e) {
       // ignore
     }
@@ -25,7 +29,11 @@ process.on('SIGTERM', cleanupAndExit);
 process.on('exit', () => {
   for (const proc of activeProcesses) {
     try {
-      proc.kill('SIGKILL');
+      if (process.platform === 'win32') {
+        execSync(`taskkill /pid ${proc.pid} /T /F`, { stdio: 'ignore' });
+      } else {
+        proc.kill('SIGKILL');
+      }
     } catch (e) {
       // ignore
     }
@@ -335,5 +343,11 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: "ffmpeg.exe" is missing from the project root! MP3 conversion may fail.');
   } else {
     console.log('✅ Found standalone ffmpeg.exe');
+  }
+
+  // Automatically open browser on Windows once server is successfully listening
+  if (process.platform === 'win32') {
+    console.log('Launching browser to http://localhost:3000/ ...');
+    exec('start http://localhost:3000/');
   }
 });
