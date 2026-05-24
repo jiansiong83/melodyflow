@@ -26,6 +26,10 @@ function cleanupAndExit() {
 
 process.on('SIGINT', cleanupAndExit);
 process.on('SIGTERM', cleanupAndExit);
+// Note: The 'exit' event only supports synchronous operations. execSync is used here as a 
+// best-effort, platform-dependent fallback to clean up process trees during final exit.
+// For standard terminations (e.g., Ctrl+C), the SIGINT and SIGTERM handlers are the primary 
+// mechanisms that guarantee execution.
 process.on('exit', () => {
   for (const proc of activeProcesses) {
     try {

@@ -76,7 +76,7 @@ Double-click **`双击启动下载器.bat`** (Double-click to Launch) in the pro
 ## 🚀 Future Roadmap
 * **Persistent Cache Index (`history.json`)**: Maintain a database indexing downloaded tracks by `Video ID` or file `MD5` hashes to prevent duplicates caused by filename spacing variances.
 * **Concurrency Pool**: Add a user-configurable pool (`1~3` concurrent downloads) using `p-limit`.
-* **Resource Governance**: Add strict queue size limits and terminate the process tree to prevent orphaned processes and memory leaks.
+* **Resource Governance**: Implement configurable queue size limits and active stream auditing to monitor memory footprints during large-scale execution.
 
 ---
 
@@ -151,7 +151,7 @@ D:\music-downloader
 ## 🚀 未来演进规划 (Roadmap)
 * **持久化去重索引 (`history.json`)**：未来规划维护一个本地 `history.json` 索引库，以视频的唯一 `Video ID` 或音频文件的 `MD5` 码作为唯一标识做去重。
 * **多线程并发池**：引入基于并发限制（如 `p-limit`）的线程池，支持用户自主选择并发下载数。
-* **资源与进程治理**：在退出及结束时强制杀掉整个子进程树（Windows 下使用 taskkill 树状清理），并及时释放进程与流引用以防内存与句柄泄漏。
+* **资源流式治理**：限制最大输入队列长度，并及时在下载结束后释放未引用的音频流句柄，防范高并发下的内存抖动。
 
 ---
 
