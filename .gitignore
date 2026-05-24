@@ -1,0 +1,15 @@
+# Exclude large executable binaries
+*.exe
+
+# Exclude dependencies
+node_modules/
+package-lock.json
+
+# Exclude downloaded media
+downloads/
+mp3_download/
+temp_*
+
+# Exclude environment variables and logs
+.env
+*.log

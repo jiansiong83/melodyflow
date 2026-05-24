@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MelodyFlow - 批量 MP3 音乐下载器</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons for premium UI look -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <!-- Animated Background Shapes -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <i data-lucide="music" class="logo-icon"></i>
+        <h1 class="logo-title">MelodyFlow</h1>
+      </div>
+      <p class="logo-subtitle">极简高端 · 歌曲 MP3 批量自动搜索与下载</p>
+    </header>
+
+    <main class="app-main">
+      <div class="grid-layout">
+        <!-- Left Column: Input and Configuration -->
+        <section class="control-panel glass-card">
+          <h2 class="section-title"><i data-lucide="list-music"></i> 歌曲输入与配置</h2>
+          
+          <div class="form-group">
+            <label for="song-list">歌曲列表 (每行一首歌曲，支持“歌名”或“歌手 - 歌名”)</label>
+            <textarea id="song-list" placeholder="例如：
+周杰伦 - 晴天
+陈奕迅 - 十年
+Michael Learns To Rock - That's Why (You Go Away)
+Right Here Waiting - Richard Marx" spellcheck="false"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="download-dir">下载目录 (本地文件夹路径)</label>
+            <div class="input-with-button">
+              <input type="text" id="download-dir" value="D:\mp3_download" placeholder="请输入绝对路径">
+              <button id="btn-open-dir" class="btn-secondary" title="在Windows中打开此文件夹">
+                <i data-lucide="folder-open"></i> 打开文件夹
+              </button>
+            </div>
+          </div>
+
+          <div class="action-buttons">
+            <button id="btn-start" class="btn-primary">
+              <i data-lucide="download-cloud"></i> 开始批量下载
+            </button>
+            <button id="btn-clear" class="btn-danger">
+              <i data-lucide="trash-2"></i> 清空列表
+            </button>
+          </div>
+        </section>
+
+        <!-- Right Column: Queue and Progress -->
+        <section class="queue-panel glass-card">
+          <div class="section-header">
+            <h2 class="section-title"><i data-lucide="loader-2" class="spin-icon hidden"></i> 下载状态队列</h2>
+            <div class="stats-badge hidden" id="queue-stats">
+              已完成: <span id="stat-done" class="stat-num">0</span> / <span id="stat-total" class="stat-num">0</span>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div class="empty-state" id="empty-state">
+            <i data-lucide="music-4" class="empty-icon"></i>
+            <p>队列为空，请在左侧输入歌曲列表并点击“开始批量下载”</p>
+          </div>
+
+          <!-- Queue List -->
+          <div class="queue-list hidden" id="queue-list">
+            <!-- Dynamic elements go here -->
+          </div>
+
+          <!-- Global Summary Footer -->
+          <div class="summary-footer hidden" id="summary-footer">
+            <div class="progress-container">
+              <div class="progress-text-row">
+                <span>总下载进度</span>
+                <span id="global-progress-percent">0%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="global-progress-fill"></div>
+              </div>
+            </div>
+            <div class="summary-details">
+              <div class="summary-stat text-success">
+                <i data-lucide="check-circle-2"></i> 成功: <span id="summary-success-count">0</span>
+              </div>
+              <div class="summary-stat text-error">
+                <i data-lucide="alert-triangle"></i> 限制/失败: <span id="summary-error-count">0</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+  </script>
+</body>
+</html>
