@@ -49,6 +49,33 @@ process.on('exit', () => {
   }
 });
 
+// Helper to run a child process as a Promise, managing activeProcesses registration automatically
+function runProcess(commandPath, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(commandPath, args);
+    activeProcesses.add(child);
+    
+    let stderrData = '';
+    child.stderr.on('data', (data) => {
+      stderrData += data.toString();
+    });
+    
+    child.on('close', (code) => {
+      activeProcesses.delete(child);
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(stderrData.trim() || `Process exited with code ${code}`));
+      }
+    });
+    
+    child.on('error', (err) => {
+      activeProcesses.delete(child);
+      reject(err);
+    });
+  });
+}
+
 const app = express();
 const PORT = 3000;
 
@@ -136,6 +163,11 @@ app.post('/api/download', async (req, res) => {
   }
 
   try {
+    // Strict path validation to prevent path traversal
+    if (targetDir.includes('..') || targetDir.includes('\0')) {
+      return res.status(400).json({ error: 'Invalid download directory path' });
+    }
+
     // Ensure download directory exists
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
@@ -191,7 +223,7 @@ app.post('/api/download', async (req, res) => {
     
     console.log(`Starting yt-dlp download for ID ${songId} -> ${filePath}`);
 
-    // Spawn yt-dlp.exe with arguments
+    // Spawn yt-dlp.exe with arguments to download and convert to MP3 VBR V0
     const args = [
       '--js-runtimes', 'node',
       '-x',
@@ -202,102 +234,74 @@ app.post('/api/download', async (req, res) => {
       videoUrl
     ];
 
-    const child = spawn(ytDlpPath, args);
-    activeProcesses.add(child);
+    await runProcess(ytDlpPath, args);
 
-    let stderrData = '';
-    let stdoutData = '';
+    if (!fs.existsSync(filePath)) {
+      throw new Error('Downloaded file not found after conversion');
+    }
 
-    child.stdout.on('data', (data) => {
-      stdoutData += data.toString();
-    });
-
-    child.stderr.on('data', (data) => {
-      stderrData += data.toString();
-    });
-
-    child.on('close', (code) => {
-      activeProcesses.delete(child);
-      if (code === 0 && fs.existsSync(filePath)) {
-        console.log(`Finished download for: ${filename}.mp3, embedding metadata...`);
-        const tempFilePath = path.join(targetDir, `temp_${filename}.mp3`);
-        
-        let metaTitle = title;
-        let metaArtist = artist || 'Unknown Artist';
-        
-        const isUrl = customFilename && (customFilename.startsWith('http://') || customFilename.startsWith('https://') || customFilename.includes('youtube.com') || customFilename.includes('youtu.be'));
-        if (customFilename && !isUrl) {
-          const parts = customFilename.split(/\s*[-–]\s*/);
-          if (parts.length >= 2) {
-            const knownArtists = [
-              "Michael Learns To Rock", "Richard Marx", "Savage Garden", "Avril Lavigne",
-              "Celine Dion", "Aerosmith", "Britney Spears", "Enrique Iglesias",
-              "Bon Jovi", "Robbie Williams", "LeAnn Rimes", "Natalie Imbruglia", "Toni Braxton"
-            ];
-            const part0Match = knownArtists.find(a => a.toLowerCase() === parts[0].trim().toLowerCase());
-            const part1Match = knownArtists.find(a => a.toLowerCase() === parts[1].trim().toLowerCase());
-            if (part0Match) {
-              metaArtist = part0Match;
-              metaTitle = parts.slice(1).join(' - ').trim();
-            } else if (part1Match) {
-              metaArtist = part1Match;
-              metaTitle = parts[0].trim();
-            } else {
-              metaArtist = parts[0].trim();
-              metaTitle = parts.slice(1).join(' - ').trim();
-            }
-          }
-        }
-        
-        const ffmpegBinPath = path.join(__dirname, 'ffmpeg.exe');
-        const ffmpegArgs = [
-          '-y',
-          '-i', filePath,
-          '-metadata', `title=${metaTitle}`,
-          '-metadata', `artist=${metaArtist}`,
-          '-codec', 'copy',
-          tempFilePath
+    console.log(`Finished download for: ${filename}.mp3, embedding metadata...`);
+    const tempFilePath = path.join(targetDir, `temp_${filename}.mp3`);
+    
+    let metaTitle = title;
+    let metaArtist = artist || 'Unknown Artist';
+    
+    if (customFilename && !isUrl) {
+      const parts = customFilename.split(/\s*[-–]\s*/);
+      if (parts.length >= 2) {
+        const knownArtists = [
+          "Michael Learns To Rock", "Richard Marx", "Savage Garden", "Avril Lavigne",
+          "Celine Dion", "Aerosmith", "Britney Spears", "Enrique Iglesias",
+          "Bon Jovi", "Robbie Williams", "LeAnn Rimes", "Natalie Imbruglia", "Toni Braxton"
         ];
-        
-        const postProcess = spawn(ffmpegBinPath, ffmpegArgs);
-        activeProcesses.add(postProcess);
-        
-        postProcess.on('close', (pCode) => {
-          activeProcesses.delete(postProcess);
-          if (pCode === 0 && fs.existsSync(tempFilePath)) {
-            try {
-              fs.unlinkSync(filePath);
-              fs.renameSync(tempFilePath, filePath);
-              console.log(`Successfully embedded ID3 metadata tags into ${filename}.mp3`);
-            } catch (err) {
-              console.error('Failed to swap post-processed metadata file:', err.message);
-            }
-          } else {
-            console.error('ffmpeg metadata post-processing failed');
-            if (fs.existsSync(tempFilePath)) {
-              fs.unlinkSync(tempFilePath);
-            }
-          }
-          
-          return res.json({
-            success: true,
-            message: 'Download completed successfully',
-            filename: `${filename}.mp3`,
-            filePath
-          });
-        });
-      } else {
-        console.error(`yt-dlp failed with exit code ${code}`);
-        console.error('stderr:', stderrData);
-        return res.status(500).json({
-          error: 'Download failed',
-          details: stderrData || `Exit code ${code}`
-        });
+        const part0Match = knownArtists.find(a => a.toLowerCase() === parts[0].trim().toLowerCase());
+        const part1Match = knownArtists.find(a => a.toLowerCase() === parts[1].trim().toLowerCase());
+        if (part0Match) {
+          metaArtist = part0Match;
+          metaTitle = parts.slice(1).join(' - ').trim();
+        } else if (part1Match) {
+          metaArtist = part1Match;
+          metaTitle = parts[0].trim();
+        } else {
+          metaArtist = parts[0].trim();
+          metaTitle = parts.slice(1).join(' - ').trim();
+        }
       }
+    }
+    
+    const ffmpegBinPath = path.join(__dirname, 'ffmpeg.exe');
+    const ffmpegArgs = [
+      '-y',
+      '-i', filePath,
+      '-metadata', `title=${metaTitle}`,
+      '-metadata', `artist=${metaArtist}`,
+      '-codec', 'copy',
+      tempFilePath
+    ];
+    
+    await runProcess(ffmpegBinPath, ffmpegArgs);
+
+    if (fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(filePath);
+        fs.renameSync(tempFilePath, filePath);
+        console.log(`Successfully embedded ID3 metadata tags into ${filename}.mp3`);
+      } catch (err) {
+        console.error('Failed to swap post-processed metadata file:', err.message);
+      }
+    } else {
+      throw new Error('ffmpeg metadata post-processing failed');
+    }
+    
+    return res.json({
+      success: true,
+      message: 'Download completed successfully',
+      filename: `${filename}.mp3`,
+      filePath
     });
 
   } catch (err) {
-    console.error('Download API error:', err);
+    console.error('Download API error:', err.message);
     return res.status(500).json({ error: 'Failed to download song', details: err.message });
   }
 });
