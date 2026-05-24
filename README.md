@@ -1,14 +1,96 @@
 # MelodyFlow: 批量 MP3 下载器 (Batch MP3 Downloader)
 
-MelodyFlow 是一个运行于 Windows 平台的轻量化、便携式批量音乐下载与打标系统。支持用户批量输入“歌手 - 歌名”文本列表或直接粘贴 YouTube 视频链接，自动检索、流式下载、转码高音质 MP3，并自动写入 ID3 歌曲元数据。
+[English](#english) | [中文](#中文)
 
 ---
 
-## 📌 快速开始 (Quick Start)
+# English
+
+MelodyFlow is a lightweight, portable batch music downloader and tagger for Windows. It allows users to input a text list of "Artist - Song" or paste YouTube links directly. The system automatically searches, stream-downloads, converts to high-quality MP3 on the fly, and embeds ID3 metadata.
+
+---
+
+## 📌 Quick Start
+
+### 1. Clone / Download the Project
+```bash
+git clone https://github.com/jiansiong83/melodyflow.git
+cd melodyflow
+```
+
+### 2. Download Executable Binaries
+To keep the repository lightweight, this repository does not include large executable binaries. Before running, please download the following tools and **place them directly in the project root directory**:
+
+1. **`yt-dlp.exe`**: Download the latest release from the [yt-dlp GitHub Releases](https://github.com/yt-dlp/yt-dlp/releases).
+2. **`ffmpeg.exe` & `ffprobe.exe`**: Download the Windows static builds from the [FFmpeg Official Site](https://ffmpeg.org/download.html), and extract `ffmpeg.exe` and `ffprobe.exe`.
+
+Your folder structure should look like this:
+```text
+D:\music-downloader
+ ├─ public                    # Static frontend folder
+ ├─ index.js                  # Express backend server
+ ├─ yt-dlp.exe                # ◄ Place manually here
+ ├─ ffmpeg.exe                # ◄ Place manually here
+ ├─ ffprobe.exe               # ◄ Place manually here
+ ├─ 双击启动下载器.bat         # Batch launcher script
+ └─ package.json              # Dependency declarations
+```
+
+### 3. Install & Start
+Double-click **`双击启动下载器.bat`** (Double-click to Launch) in the project directory. The script will automatically:
+1. Run `npm install` to install Node dependencies.
+2. Start the local Express server.
+3. Launch your default web browser to the interface: `http://localhost:3000/`
+
+---
+
+## ⚙️ Core Architecture & How It Works
+
+### 1. Input Sanitization & Dual-Channel Routing
+* **Format Cleaning**: The frontend filters out leading numbers (e.g., `11. `) and Markdown formatting (e.g., `*`).
+* **Route Matching**:
+  * **Direct URLs**: Detects YouTube URLs, extracts the 11-character Video ID (`([A-Za-z0-9_-]{11})`), and queries video metadata directly, skipping search.
+  * **Keywords**: Runs a query through YouTube search and selects the most relevant result.
+
+### 2. Deduplication Cache Check
+* Checks if `[Artist] - [Title].mp3` already exists in the output folder. If found, it skips downloading instantly to save bandwidth.
+
+### 3. High-Fidelity Audio Extraction & Encoding
+* Streams audio via `yt-dlp` using `--js-runtimes node` for signature decryption.
+* Pipes the audio stream to `ffmpeg` to encode it as **LAME VBR V0** MP3 (average bitrate ~`245kbps`, peaks up to `260kbps/320kbps`), ensuring CD-like quality with a compact file size.
+
+### 4. Zero-Reencoding Stream Copy ID3 Tagging
+* Reorganizes and purges the title (removing redundancies like `[Official Video]`).
+* Calls `ffmpeg` using **Stream Copy (`-codec copy`)** to inject `Title` and `Artist` ID3 tags in milliseconds without re-encoding, preserving 100% audio quality.
+
+---
+
+## 🛡️ Resiliency & Error Handling
+1. **Startup Binary Warnings**: The server verifies `yt-dlp.exe` and `ffmpeg.exe` on startup. If any are missing, it logs a warning.
+2. **Drive Detection Fallback**: The default download path is `D:\mp3_download`. If the D drive is not present on the system, it automatically falls back to `.\downloads` inside the project root to prevent crashes.
+3. **URL Safety Filter**: If a URL is pasted, the system ignores it for the filename and instead uses cleaned metadata to name the output file.
+4. **Non-blocking Queue Polling**: If a track download fails, the UI logs the error and highlights it in red, but **the batch download queue continues** to process the next song.
+
+---
+
+## 🚀 Future Roadmap
+* **Persistent Cache Index (`history.json`)**: Maintain a database indexing downloaded tracks by `Video ID` or file `MD5` hashes to prevent duplicates caused by filename spacing variances.
+* **Concurrency Pool**: Add a user-configurable pool (`1~3` concurrent downloads) using `p-limit`.
+* **Resource Governance**: Add strict queue size limits and release stderr buffers to prevent memory leaks during massive batch downloads.
+
+---
+
+# 中文
+
+MelodyFlow 是一个运行于 Windows 平台的轻量化、便携式批量音乐下载与打标系统。支持用户批量输入“歌手 - 歌名”文本列表或直接粘贴 YouTube 视频链接，后端自动检索、流式下载、转码高音质 MP3，并自动写入 ID3 歌曲元数据。
+
+---
+
+## 📌 快速开始
 
 ### 1. 克隆/下载本项目
 ```bash
-git clone https://github.com/您的用户名/melodyflow.git
+git clone https://github.com/jiansiong83/melodyflow.git
 cd melodyflow
 ```
 
@@ -16,9 +98,9 @@ cd melodyflow
 为了保持代码库的轻量化，本项目未包含大型二进制可执行文件。在运行前，请下载以下三个工具并**直接放置在项目根目录下**：
 
 1. **`yt-dlp.exe`**：从 [yt-dlp 官方 GitHub Release](https://github.com/yt-dlp/yt-dlp/releases) 下载最新的 `yt-dlp.exe`。
-2. **`ffmpeg.exe` & `ffprobe.exe`**：从 [FFmpeg 官网](https://ffmpeg.org/download.html) 或可靠的发布页下载 Windows 静态编译版，并提取出 `ffmpeg.exe` 和 `ffprobe.exe`。
+2. **`ffmpeg.exe` & `ffprobe.exe`**：从 [FFmpeg 官网](https://ffmpeg.org/download.html) 下载 Windows 静态编译版，并提取出 `ffmpeg.exe` 和 `ffprobe.exe`。
 
-此时，您的项目根目录结构应如下所示：
+您的项目文件夹结构应如下所示：
 ```text
 D:\music-downloader
  ├─ public                    # 静态前端资源文件夹
@@ -50,7 +132,8 @@ D:\music-downloader
 * 后端基于输出路径的文件名进行存在性校验。若已存在 `[歌手] - [歌名].mp3`，则秒级返回跳过，避免重复下载。
 
 ### 3. 音效提取与高保真转码
-* 使用 `yt-dlp` 流式抓取音轨，通过管道实时交由 `ffmpeg` 压缩，转码参数指定为 **LAME VBR V0 级别**（最高音质动态码率级别，平均码率约 `245kbps`，峰值可达 `260kbps/320kbps`）。
+* 使用 `yt-dlp` 流式抓取音轨，通过配置 `--js-runtimes node` 自动处理 signature 特征解密。
+* 将音频流实时交由 `ffmpeg` 压缩，转码参数指定为 **LAME VBR V0 级别**（最高音质动态码率级别，平均码率约 `245kbps`，峰值可达 `260kbps/320kbps`）。
 
 ### 4. 流复制元数据嵌入
 * 重组并净化文件名。使用 `ffmpeg` 的 **流复制 (Stream Copy, `-codec copy`)** 机制。该操作不重新编码音轨，仅在输出容器的元数据元区域重写 `Title` 与 `Artist` 属性，耗时在毫秒级别，避免了二次转码造成的音质损耗。
@@ -65,14 +148,12 @@ D:\music-downloader
 
 ---
 
-## 🔧 运维与更新维护
-由于 YouTube 经常更新特征码解密算法，可定期通过控制台进行更新：
-```cmd
-yt-dlp.exe -U
-```
+## 🚀 未来演进规划 (Roadmap)
+* **持久化去重索引 (`history.json`)**：未来规划维护一个本地的 `history.json` 索引库，以视频的唯一 `Video ID` 或音频文件的 `MD5` 码作为唯一标识做去重。
+* **多线程并发池**：引入基于并发限制（如 `p-limit`）的线程池，支持用户自主选择并发下载数。
+* **资源流式治理**：限制最大输入队列长度，并及时在子进程结束时释放控制台内存缓存，避免爆满。
 
 ---
 
-## 🚀 未来演进规划 (Roadmap)
-* **持久化去重索引 (`history.json`)**：未来规划维护一个本地的 `history.json` 索引库，以视频的唯一 `Video ID` 或音频文件的 `MD5` 码作为唯一标识做去重。
-* **多线程并发池**：引入可控并发池，支持用户自主选择并发下载数。
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
