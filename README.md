@@ -57,7 +57,7 @@ Double-click **`双击启动下载器.bat`** (Double-click to Launch) in the pro
 
 ### 3. High-Fidelity Audio Extraction & Encoding
 * Streams audio via `yt-dlp` using `--js-runtimes node` for signature decryption.
-* Pipes the audio stream to `ffmpeg` to encode it as **LAME VBR V0** MP3 (average bitrate ~`245kbps`, peaks up to `260kbps/320kbps`), ensuring CD-like quality with a compact file size.
+* Pipes the audio stream to `ffmpeg` to encode it as **LAME VBR V0** MP3 (average bitrate ~`245kbps`, peaks up to `260kbps`), ensuring CD-like quality with a compact file size.
 
 ### 4. Zero-Reencoding Stream Copy ID3 Tagging
 * Reorganizes and purges the title (removing redundancies like `[Official Video]`).
@@ -133,7 +133,7 @@ D:\music-downloader
 
 ### 3. 音效提取与高保真转码
 * 使用 `yt-dlp` 流式抓取音轨，通过配置 `--js-runtimes node` 自动处理 signature 特征解密。
-* 将音频流实时交由 `ffmpeg` 压缩，转码参数指定为 **LAME VBR V0 级别**（最高音质动态码率级别，平均码率约 `245kbps`，峰值可达 `260kbps/320kbps`）。
+* 将音频流实时交由 `ffmpeg` 压缩，转码参数指定为 **LAME VBR V0 级别**（最高音质动态码率级别，平均码率约 `245kbps`，峰值可达 `260kbps`）。
 
 ### 4. 流复制元数据嵌入
 * 重组并净化文件名。使用 `ffmpeg` 的 **流复制 (Stream Copy, `-codec copy`)** 机制。该操作不重新编码音轨，仅在输出容器的元数据元区域重写 `Title` 与 `Artist` 属性，耗时在毫秒级别，避免了二次转码造成的音质损耗。
