@@ -5,6 +5,33 @@ const path = require('path');
 const { exec, spawn } = require('child_process');
 const yts = require('yt-search');
 
+// Active child process registry for lifecycle management (preventing orphan processes)
+const activeProcesses = new Set();
+
+function cleanupAndExit() {
+  console.log('\nShutting down server, terminating active download/transcode child processes...');
+  for (const proc of activeProcesses) {
+    try {
+      proc.kill('SIGKILL');
+    } catch (e) {
+      // ignore
+    }
+  }
+  process.exit(0);
+}
+
+process.on('SIGINT', cleanupAndExit);
+process.on('SIGTERM', cleanupAndExit);
+process.on('exit', () => {
+  for (const proc of activeProcesses) {
+    try {
+      proc.kill('SIGKILL');
+    } catch (e) {
+      // ignore
+    }
+  }
+});
+
 const app = express();
 const PORT = 3000;
 
@@ -159,6 +186,7 @@ app.post('/api/download', async (req, res) => {
     ];
 
     const child = spawn(ytDlpPath, args);
+    activeProcesses.add(child);
 
     let stderrData = '';
     let stdoutData = '';
@@ -172,6 +200,7 @@ app.post('/api/download', async (req, res) => {
     });
 
     child.on('close', (code) => {
+      activeProcesses.delete(child);
       if (code === 0 && fs.existsSync(filePath)) {
         console.log(`Finished download for: ${filename}.mp3, embedding metadata...`);
         const tempFilePath = path.join(targetDir, `temp_${filename}.mp3`);
@@ -214,7 +243,10 @@ app.post('/api/download', async (req, res) => {
         ];
         
         const postProcess = spawn(ffmpegBinPath, ffmpegArgs);
+        activeProcesses.add(postProcess);
+        
         postProcess.on('close', (pCode) => {
+          activeProcesses.delete(postProcess);
           if (pCode === 0 && fs.existsSync(tempFilePath)) {
             try {
               fs.unlinkSync(filePath);
