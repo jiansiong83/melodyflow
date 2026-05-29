@@ -6,6 +6,7 @@ const i18n = {
     listLabel: '歌曲列表 (每行一首歌曲，支持“歌名”或“歌手 - 歌名”)',
     placeholder: '例如：\n周杰伦 - 晴天\n陈奕迅 - 十年\nMichael Learns To Rock - That\'s Why (You Go Away)\nRight Here Waiting - Richard Marx',
     sourceLabel: '默认搜索源',
+    sourceAuto: '智能推荐',
     dirLabel: '下载目录 (本地文件夹路径)',
     dirPlaceholder: '请输入绝对路径',
     proxyLabel: '网络代理 (可选，中国大陆用户下载 YouTube 需配置)',
@@ -41,6 +42,7 @@ const i18n = {
     listLabel: 'Song List (One song per line, supports "Song Title" or "Artist - Song")',
     placeholder: 'Example:\nMichael Learns To Rock - That\'s Why (You Go Away)\nRichard Marx - Right Here Waiting\nJay Chou - Qiang Tian',
     sourceLabel: 'Default Search Source',
+    sourceAuto: 'Auto Recommendation',
     dirLabel: 'Download Directory (Local folder path)',
     dirPlaceholder: 'Please enter absolute path',
     proxyLabel: 'Network Proxy (Optional, required for YouTube access in restricted regions)',
@@ -98,26 +100,37 @@ const spinIcon = document.querySelector('.spin-icon');
 const btnLangToggle = document.getElementById('btn-lang-toggle');
 const currentLangText = document.getElementById('current-lang-text');
 
+const btnSourceAuto = document.getElementById('btn-source-auto');
 const btnSourceYoutube = document.getElementById('btn-source-youtube');
 const btnSourceBilibili = document.getElementById('btn-source-bilibili');
-let currentSearchSource = localStorage.getItem('melodyflow_search_source') || 'youtube';
+let currentSearchSource = localStorage.getItem('melodyflow_search_source') || 'auto';
 
 function setSearchSource(source) {
   currentSearchSource = source;
   localStorage.setItem('melodyflow_search_source', source);
   
-  if (source === 'bilibili') {
-    btnSourceYoutube.classList.remove('active');
+  if (btnSourceAuto) btnSourceAuto.classList.remove('active');
+  if (btnSourceYoutube) btnSourceYoutube.classList.remove('active');
+  if (btnSourceBilibili) btnSourceBilibili.classList.remove('active');
+  
+  if (source === 'bilibili' && btnSourceBilibili) {
     btnSourceBilibili.classList.add('active');
-  } else {
+  } else if (source === 'youtube' && btnSourceYoutube) {
     btnSourceYoutube.classList.add('active');
-    btnSourceBilibili.classList.remove('active');
+  } else if (btnSourceAuto) {
+    btnSourceAuto.classList.add('active');
   }
 }
 
-if (btnSourceYoutube && btnSourceBilibili) {
+if (btnSourceAuto && btnSourceYoutube && btnSourceBilibili) {
+  btnSourceAuto.addEventListener('click', () => setSearchSource('auto'));
   btnSourceYoutube.addEventListener('click', () => setSearchSource('youtube'));
   btnSourceBilibili.addEventListener('click', () => setSearchSource('bilibili'));
+}
+
+function detectBestSource(keyword) {
+  const containsChinese = /[\u4e00-\u9fa5]/.test(keyword);
+  return containsChinese ? 'bilibili' : 'youtube';
 }
 
 let downloadQueue = [];
@@ -354,7 +367,8 @@ async function processQueueItem(idx) {
   let sortedCandidates = [];
   let searchError = '';
   try {
-    const res = await fetch(`/api/search?keyword=${encodeURIComponent(item.rawInput)}&source=${currentSearchSource}`);
+    const searchSource = currentSearchSource === 'auto' ? detectBestSource(item.rawInput) : currentSearchSource;
+    const res = await fetch(`/api/search?keyword=${encodeURIComponent(item.rawInput)}&source=${searchSource}`);
     const data = await res.json();
     if (res.ok) {
       if (data.songs && data.songs.length > 0) {

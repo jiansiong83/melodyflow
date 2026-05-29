@@ -710,6 +710,12 @@ button {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.btn-source.active[data-source="auto"] {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
 .btn-source.active[data-source="youtube"] {
   background: linear-gradient(135deg, var(--primary) 0%, hsl(263, 85%, 55%) 100%);
   color: #fff;
