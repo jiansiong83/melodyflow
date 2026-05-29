@@ -327,6 +327,7 @@ button {
   flex-direction: column;
   min-height: 480px;
   max-height: 600px;
+  min-width: 0; /* Prevent long filenames/titles from expanding the grid container */
 }
 
 .section-header {
@@ -632,4 +633,96 @@ button {
 
 .hidden {
   display: none !important;
+}
+
+/* Language Toggle Button styling */
+.lang-selector {
+  position: absolute;
+  top: 40px;
+  right: 24px;
+  z-index: 100;
+}
+
+@media (max-width: 960px) {
+  .lang-selector {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+  }
+}
+
+.btn-lang {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-lang:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--glass-border-focus);
+  transform: translateY(-1px);
+}
+
+.btn-lang i {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}
+
+/* Search Source Selector */
+.search-source-selector {
+  display: flex;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  gap: 4px;
+}
+
+.btn-source {
+  flex: 1;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: calc(var(--radius-md) - 2px);
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-source:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.btn-source.active[data-source="youtube"] {
+  background: linear-gradient(135deg, var(--primary) 0%, hsl(263, 85%, 55%) 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.btn-source.active[data-source="bilibili"] {
+  background: linear-gradient(135deg, var(--accent) 0%, hsl(190, 95%, 42%) 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.btn-source i {
+  width: 16px;
+  height: 16px;
 }

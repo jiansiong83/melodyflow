@@ -17,7 +17,6 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "musicn": "^1.5.3-beta.0",
-    "NeteaseCloudMusicApi": "^4.32.0",
-    "yt-search": "^2.13.1"
+    "NeteaseCloudMusicApi": "^4.32.0"
   }
 }

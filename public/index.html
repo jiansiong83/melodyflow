@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Lucide Icons for premium UI look -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="index.css?v=1.1">
 </head>
 <body>
   <!-- Animated Background Shapes -->
@@ -18,23 +18,31 @@
   <div class="bg-glow bg-glow-2"></div>
 
   <div class="app-container">
+    <!-- Language Toggle Switcher -->
+    <div class="lang-selector">
+      <button id="btn-lang-toggle" class="btn-lang" title="Toggle Language / 切换语言">
+        <i data-lucide="languages"></i>
+        <span id="current-lang-text">English</span>
+      </button>
+    </div>
+
     <!-- Header -->
     <header class="app-header">
       <div class="logo-area">
         <i data-lucide="music" class="logo-icon"></i>
         <h1 class="logo-title">MelodyFlow</h1>
       </div>
-      <p class="logo-subtitle">极简高端 · 歌曲 MP3 批量自动搜索与下载</p>
+      <p class="logo-subtitle" data-i18n="subtitle">极简高端 · 歌曲 MP3 批量自动搜索与下载</p>
     </header>
 
     <main class="app-main">
       <div class="grid-layout">
         <!-- Left Column: Input and Configuration -->
         <section class="control-panel glass-card">
-          <h2 class="section-title"><i data-lucide="list-music"></i> 歌曲输入与配置</h2>
+          <h2 class="section-title" data-i18n="inputTitle"><i data-lucide="list-music"></i> 歌曲输入与配置</h2>
           
           <div class="form-group">
-            <label for="song-list">歌曲列表 (每行一首歌曲，支持“歌名”或“歌手 - 歌名”)</label>
+            <label for="song-list" data-i18n="listLabel">歌曲列表 (每行一首歌曲，支持“歌名”或“歌手 - 歌名”)</label>
             <textarea id="song-list" placeholder="例如：
 周杰伦 - 晴天
 陈奕迅 - 十年
@@ -43,20 +51,37 @@ Right Here Waiting - Richard Marx" spellcheck="false"></textarea>
           </div>
 
           <div class="form-group">
-            <label for="download-dir">下载目录 (本地文件夹路径)</label>
+            <label data-i18n="sourceLabel">默认搜索源</label>
+            <div class="search-source-selector">
+              <button type="button" id="btn-source-youtube" class="btn-source active" data-source="youtube">
+                <i data-lucide="youtube"></i> YouTube
+              </button>
+              <button type="button" id="btn-source-bilibili" class="btn-source" data-source="bilibili">
+                <i data-lucide="tv"></i> Bilibili
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="download-dir" data-i18n="dirLabel">下载目录 (本地文件夹路径)</label>
             <div class="input-with-button">
               <input type="text" id="download-dir" value="D:\mp3_download" placeholder="请输入绝对路径">
-              <button id="btn-open-dir" class="btn-secondary" title="在Windows中打开此文件夹">
+              <button id="btn-open-dir" class="btn-secondary" title="在Windows中打开此文件夹" data-i18n="openFolder">
                 <i data-lucide="folder-open"></i> 打开文件夹
               </button>
             </div>
           </div>
 
+          <div class="form-group">
+            <label for="network-proxy" data-i18n="proxyLabel">网络代理 (可选，中国大陆用户下载 YouTube 需配置)</label>
+            <input type="text" id="network-proxy" placeholder="例如：http://127.0.0.1:7890">
+          </div>
+
           <div class="action-buttons">
-            <button id="btn-start" class="btn-primary">
+            <button id="btn-start" class="btn-primary" data-i18n="startDownload">
               <i data-lucide="download-cloud"></i> 开始批量下载
             </button>
-            <button id="btn-clear" class="btn-danger">
+            <button id="btn-clear" class="btn-danger" data-i18n="clearList">
               <i data-lucide="trash-2"></i> 清空列表
             </button>
           </div>
@@ -65,16 +90,16 @@ Right Here Waiting - Richard Marx" spellcheck="false"></textarea>
         <!-- Right Column: Queue and Progress -->
         <section class="queue-panel glass-card">
           <div class="section-header">
-            <h2 class="section-title"><i data-lucide="loader-2" class="spin-icon hidden"></i> 下载状态队列</h2>
+            <h2 class="section-title" data-i18n="queueTitle"><i data-lucide="loader-2" class="spin-icon hidden"></i> 下载状态队列</h2>
             <div class="stats-badge hidden" id="queue-stats">
-              已完成: <span id="stat-done" class="stat-num">0</span> / <span id="stat-total" class="stat-num">0</span>
+              <span data-i18n="completedBadge">已完成</span>: <span id="stat-done" class="stat-num">0</span> / <span id="stat-total" class="stat-num">0</span>
             </div>
           </div>
 
           <!-- Empty State -->
           <div class="empty-state" id="empty-state">
             <i data-lucide="music-4" class="empty-icon"></i>
-            <p>队列为空，请在左侧输入歌曲列表并点击“开始批量下载”</p>
+            <p data-i18n="emptyState">队列为空，请在左侧输入歌曲列表并点击“开始批量下载”</p>
           </div>
 
           <!-- Queue List -->
@@ -86,7 +111,7 @@ Right Here Waiting - Richard Marx" spellcheck="false"></textarea>
           <div class="summary-footer hidden" id="summary-footer">
             <div class="progress-container">
               <div class="progress-text-row">
-                <span>总下载进度</span>
+                <span data-i18n="overallProgress">总下载进度</span>
                 <span id="global-progress-percent">0%</span>
               </div>
               <div class="progress-bar-bg">
@@ -95,10 +120,10 @@ Right Here Waiting - Richard Marx" spellcheck="false"></textarea>
             </div>
             <div class="summary-details">
               <div class="summary-stat text-success">
-                <i data-lucide="check-circle-2"></i> 成功: <span id="summary-success-count">0</span>
+                <i data-lucide="check-circle-2"></i> <span data-i18n="successText">成功</span>: <span id="summary-success-count">0</span>
               </div>
               <div class="summary-stat text-error">
-                <i data-lucide="alert-triangle"></i> 限制/失败: <span id="summary-error-count">0</span>
+                <i data-lucide="alert-triangle"></i> <span data-i18n="failedText">限制/失败</span>: <span id="summary-error-count">0</span>
               </div>
             </div>
           </div>
@@ -107,7 +132,7 @@ Right Here Waiting - Richard Marx" spellcheck="false"></textarea>
     </main>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=1.1"></script>
   <script>
     // Initialize Lucide Icons
     lucide.createIcons();
