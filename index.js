@@ -397,9 +397,8 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Download MP3 API (YouTube download & conversion)
 app.post('/api/download', async (req, res) => {
-  const { songId, title, artist, downloadDir, customFilename } = req.body;
+  const { songId, title, artist, downloadDir, customFilename, cover } = req.body;
   if (!songId || !title) {
     return res.status(400).json({ error: 'songId and title are required' });
   }
@@ -415,6 +414,9 @@ app.post('/api/download', async (req, res) => {
       targetDir = path.join(__dirname, 'downloads');
     }
   }
+
+  let tempAudioPath = null;
+  let tempCoverPath = null;
 
   try {
     // Strict path validation to prevent path traversal
@@ -455,7 +457,6 @@ app.post('/api/download', async (req, res) => {
     // Construct uniform Artist - Title filename
     filename = `${cleanArtist} - ${cleanTitle}`;
     
-    const tempFilenamePattern = `${filename}.%(ext)s`;
     const filePath = path.join(targetDir, `${filename}.mp3`);
 
     // If file already exists, skip download
@@ -476,55 +477,110 @@ app.post('/api/download', async (req, res) => {
     } else {
       videoUrl = `https://www.youtube.com/watch?v=${songId}`;
     }
-    
-    console.log(`Starting yt-dlp download for URL/ID: ${songId} -> ${filePath}`);
 
-    // Spawn yt-dlp.exe with arguments to download and convert to MP3 VBR V0
-    const args = [
+    // 1. Resolve cover image URL and download it to temp path
+    let coverUrl = cover;
+    if (!coverUrl) {
+      try {
+        console.log(`Extracting thumbnail for fallback cover URL: ${videoUrl}`);
+        const infoOutput = await runProcessGetOutput(ytDlpPath, ['-J', '--no-playlist', '--no-warnings', videoUrl]);
+        const infoData = JSON.parse(infoOutput);
+        if (infoData) {
+          if (infoData.thumbnails && infoData.thumbnails.length > 0) {
+            coverUrl = infoData.thumbnails[infoData.thumbnails.length - 1].url;
+          } else {
+            coverUrl = infoData.thumbnail;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to extract thumbnail via fallback yt-dlp call:', err.message);
+      }
+    }
+
+    let hasCover = false;
+    tempCoverPath = path.join(targetDir, `temp_cover_${filename}.jpg`);
+    if (coverUrl) {
+      try {
+        console.log(`Downloading cover image from: ${coverUrl}`);
+        const response = await fetch(coverUrl);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          fs.writeFileSync(tempCoverPath, buffer);
+          hasCover = true;
+          console.log(`Successfully saved temporary cover image to: ${tempCoverPath}`);
+        } else {
+          throw new Error(`HTTP Status ${response.status}`);
+        }
+      } catch (err) {
+        console.warn(`Failed to download cover image (download will gracefully proceed without it):`, err.message);
+      }
+    }
+
+    // 2. Download raw audio stream (typically .m4a or .webm)
+    console.log(`Starting yt-dlp download for raw audio stream: ${songId}`);
+    const tempAudioPattern = `temp_audio_${filename}.%(ext)s`;
+    const ytArgs = [
       '--js-runtimes', 'node',
       '--no-playlist',
-      '-x',
-      '--audio-format', 'mp3',
-      '--audio-quality', '0',
-      '--ffmpeg-location', __dirname,
-      '-o', path.join(targetDir, tempFilenamePattern),
+      '-f', 'bestaudio/best',
+      '-o', path.join(targetDir, tempAudioPattern),
       videoUrl
     ];
 
-    await runProcess(ytDlpPath, args);
+    await runProcess(ytDlpPath, ytArgs);
 
-    if (!fs.existsSync(filePath)) {
-      throw new Error('Downloaded file not found after conversion');
+    // Locate the raw audio file dynamically on disk (since extension is unknown)
+    const files = fs.readdirSync(targetDir);
+    const tempAudioFile = files.find(f => f.startsWith(`temp_audio_${filename}.`));
+    if (!tempAudioFile) {
+      throw new Error('Downloaded temporary audio file not found on disk');
+    }
+    tempAudioPath = path.join(targetDir, tempAudioFile);
+    console.log(`Located downloaded temporary audio file: ${tempAudioPath}`);
+
+    // 3. Run FFmpeg command to transcode to 320kbps MP3 and optionally embed cover (ID3v2.3)
+    const ffmpegBinPath = path.join(__dirname, 'ffmpeg.exe');
+    let ffmpegArgs = [];
+
+    if (hasCover && fs.existsSync(tempCoverPath)) {
+      console.log(`Transcoding to 320kbps MP3 and embedding album art...`);
+      ffmpegArgs = [
+        '-y',
+        '-i', tempAudioPath,
+        '-i', tempCoverPath,
+        '-map', '0:a',
+        '-map', '1:v',
+        '-c:a', 'libmp3lame',
+        '-b:a', '320k',
+        '-c:v', 'mjpeg',
+        '-disposition:v:0', 'attached_pic',
+        '-id3v2_version', '3',
+        '-metadata', `title=${metaTitle}`,
+        '-metadata', `artist=${metaArtist}`,
+        filePath
+      ];
+    } else {
+      console.log(`Transcoding to 320kbps MP3 without album art (fallback)...`);
+      ffmpegArgs = [
+        '-y',
+        '-i', tempAudioPath,
+        '-map', '0:a',
+        '-c:a', 'libmp3lame',
+        '-b:a', '320k',
+        '-id3v2_version', '3',
+        '-metadata', `title=${metaTitle}`,
+        '-metadata', `artist=${metaArtist}`,
+        filePath
+      ];
     }
 
-    console.log(`Finished download for: ${filename}.mp3, embedding metadata...`);
-    const tempFilePath = path.join(targetDir, `temp_${filename}.mp3`);
-    
-
-    
-    const ffmpegBinPath = path.join(__dirname, 'ffmpeg.exe');
-    const ffmpegArgs = [
-      '-y',
-      '-i', filePath,
-      '-metadata', `title=${metaTitle}`,
-      '-metadata', `artist=${metaArtist}`,
-      '-codec', 'copy',
-      tempFilePath
-    ];
-    
     await runProcess(ffmpegBinPath, ffmpegArgs);
 
-    if (fs.existsSync(tempFilePath)) {
-      try {
-        fs.unlinkSync(filePath);
-        fs.renameSync(tempFilePath, filePath);
-        console.log(`Successfully embedded ID3 metadata tags into ${filename}.mp3`);
-      } catch (err) {
-        console.error('Failed to swap post-processed metadata file:', err.message);
-      }
-    } else {
-      throw new Error('ffmpeg metadata post-processing failed');
+    if (!fs.existsSync(filePath)) {
+      throw new Error('Final MP3 file not found after transcoding');
     }
+    console.log(`Successfully completed transcoding & metadata tagging for: ${filename}.mp3`);
     
     return res.json({
       success: true,
@@ -536,6 +592,24 @@ app.post('/api/download', async (req, res) => {
   } catch (err) {
     console.error('Download API error:', err.message);
     return res.status(500).json({ error: 'Failed to download song', details: err.message });
+  } finally {
+    // 4. Safe cleanup of temporary files
+    if (tempAudioPath && fs.existsSync(tempAudioPath)) {
+      try {
+        fs.unlinkSync(tempAudioPath);
+        console.log(`Cleaned up temporary audio: ${tempAudioPath}`);
+      } catch (e) {
+        console.warn('Failed to clean up temp audio:', e.message);
+      }
+    }
+    if (tempCoverPath && fs.existsSync(tempCoverPath)) {
+      try {
+        fs.unlinkSync(tempCoverPath);
+        console.log(`Cleaned up temporary cover: ${tempCoverPath}`);
+      } catch (e) {
+        console.warn('Failed to clean up temp cover:', e.message);
+      }
+    }
   }
 });
 

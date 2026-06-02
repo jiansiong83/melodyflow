@@ -468,6 +468,7 @@ async function processQueueItem(idx) {
           songId: candidate.id,
           title: candidate.title,
           artist: candidate.artist,
+          cover: candidate.cover,
           customFilename: item.rawInput,
           downloadDir
         })
