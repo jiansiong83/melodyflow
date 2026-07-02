@@ -322,7 +322,14 @@ app.get('/api/search', async (req, res) => {
     if (bilibiliUrlRegex.test(keyword)) {
       console.log(`Pasted direct Bilibili URL. Fetching video details for: ${keyword}`);
       const ytDlpPath = path.join(__dirname, 'yt-dlp.exe');
-      const output = await runProcessGetOutput(ytDlpPath, ['-J', '--no-playlist', '--no-warnings', keyword]);
+      const output = await runProcessGetOutput(ytDlpPath, [
+        '-J', 
+        '--no-playlist', 
+        '--no-warnings', 
+        '--referer', 'https://www.bilibili.com/', 
+        '--add-header', 'Origin:https://www.bilibili.com', 
+        keyword
+      ]);
       const data = JSON.parse(output);
       
       const song = {
@@ -483,7 +490,13 @@ app.post('/api/download', async (req, res) => {
     if (!coverUrl) {
       try {
         console.log(`Extracting thumbnail for fallback cover URL: ${videoUrl}`);
-        const infoOutput = await runProcessGetOutput(ytDlpPath, ['-J', '--no-playlist', '--no-warnings', videoUrl]);
+        const isBili = videoUrl.includes('bilibili.com') || videoUrl.includes('b23.tv');
+        const dlpArgs = ['-J', '--no-playlist', '--no-warnings'];
+        if (isBili) {
+          dlpArgs.push('--referer', 'https://www.bilibili.com/', '--add-header', 'Origin:https://www.bilibili.com');
+        }
+        dlpArgs.push(videoUrl);
+        const infoOutput = await runProcessGetOutput(ytDlpPath, dlpArgs);
         const infoData = JSON.parse(infoOutput);
         if (infoData) {
           if (infoData.thumbnails && infoData.thumbnails.length > 0) {
@@ -520,13 +533,17 @@ app.post('/api/download', async (req, res) => {
     // 2. Download raw audio stream (typically .m4a or .webm)
     console.log(`Starting yt-dlp download for raw audio stream: ${songId}`);
     const tempAudioPattern = `temp_audio_${filename}.%(ext)s`;
+    const isBili = videoUrl.includes('bilibili.com') || videoUrl.includes('b23.tv');
     const ytArgs = [
       '--js-runtimes', 'node',
       '--no-playlist',
       '-f', 'bestaudio/best',
-      '-o', path.join(targetDir, tempAudioPattern),
-      videoUrl
+      '-o', path.join(targetDir, tempAudioPattern)
     ];
+    if (isBili) {
+      ytArgs.push('--referer', 'https://www.bilibili.com/', '--add-header', 'Origin:https://www.bilibili.com');
+    }
+    ytArgs.push(videoUrl);
 
     await runProcess(ytDlpPath, ytArgs);
 
@@ -685,7 +702,7 @@ app.listen(PORT, () => {
 
   // Automatically open browser on Windows once server is successfully listening
   if (process.platform === 'win32') {
-    console.log('Launching browser to http://localhost:3000/ ...');
-    exec('start http://localhost:3000/');
+    console.log(`Launching browser to http://localhost:${PORT}/ ...`);
+    exec(`start http://localhost:${PORT}/`);
   }
 });
